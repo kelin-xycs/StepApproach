@@ -1,0 +1,285 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>二元隐函数 数值求解</title>
+    <script type="text/javascript">
+
+        var _x;
+        var _y;
+
+        var _equationLeft, _equationRight;
+
+        var _beginTime;
+
+        function ParsePara(str) {
+
+            var arr = str.split(",");
+
+            if (arr.length < 2)
+                throw "“" + str + "” 中用 逗号 , 隔开的参数只有 " + arr.length + " 个，应该有 步长 步数 2 个参数 。";
+
+            var para = new Object();
+
+            var stepLength = arr[0];
+            var stepCount = arr[1];
+            
+            para.stepLength = parseFloat(stepLength);
+            para.stepCount = parseFloat(stepCount);
+
+            if (isNaN(para.stepLength) || para.stepLength < 0)
+            {
+                throw "“" + stepLength + "” 应是正数 。";
+            }
+            if (isNaN(para.stepCount))
+            {
+                throw "“" + stepCount + "” 应是正数 。";
+            }
+
+
+            return para;
+
+        }
+
+        function btnCalculate_Click() {
+
+            _x = parseFloat(document.getElementById("txtX").value);
+
+            if (isNaN(_x)) {
+                alert("x 应填写数字 。");
+                return;
+            }
+
+            _y = parseFloat(document.getElementById("txtY").value);
+
+            if (isNaN(_y)) {
+                alert("y 初始值 应填写数字 。");
+                return;
+            }
+
+            var left = document.getElementById("txtLeft").value;
+
+            if (!left) {
+
+                alert("等式左边的函数不能为空 。");
+                return;
+            }
+            
+            var right = document.getElementById("txtRight").value;
+
+            if (!right) {
+
+                alert("等式右边的函数不能为空 。");
+                return;
+            }
+
+            try {
+
+                eval("_equationLeft = " + left);
+            }
+            catch (e) {
+
+                alert("等式左边的函数 错误 ： " + e);
+                return;
+            }
+
+            try {
+
+                eval("_equationRight = " + right);
+            }
+            catch (e) {
+
+                alert("等式右边的函数 错误 ： " + e);
+                return;
+            }
+
+            var paraStr = document.getElementById("txtPara").value;
+
+            var arr = paraStr.split(";");
+
+            paras = [];
+
+            for (let i = 0; i < arr.length; i++) {
+
+                let str = arr[i].trim();
+
+                if (str == "")
+                    continue;
+
+                try {
+                    paras[i] = ParsePara(arr[i]);
+                }
+                catch (e) {
+                    alert(e);
+                    return;
+                }
+                
+            }
+
+
+            writeMsg("spanStatus", "计算中 ……");
+
+            _beginTime = new Date();
+
+            window.setTimeout(Calculate, 0, paras);
+        }
+
+        function Try(x, y) {
+
+            var a, b;
+
+            try {
+
+                a = _equationLeft(x, y);
+            }
+            catch (e) {
+                throw "等式左边的函数 执行错误 ： " + e;
+            }
+
+            try {
+
+                b = _equationRight(x, y);
+            }
+            catch (e) {
+                throw "等式右边的函数 执行错误 ： " + e;
+            }
+
+
+            var diff = Math.abs(a - b);
+
+            return diff;
+        }
+
+        function Approach(para, y) {
+
+            var diff1, diff2, y1, y2, stepCount; 
+
+            diff1 = Try(_x, y);
+            y1 = y;
+            stepCount = 0;
+
+            for (let i = 1; i <= para.stepCount; i++) {
+
+                let l = para.stepLength * i;
+
+                y2 = y + l;
+
+                diff2 = Try(_x, y2);
+            
+                if (diff2 < diff1) {
+
+                    diff1 = diff2;
+                    y1 = y2;
+                    stepCount = i;
+                }
+
+                y2 = y - l;
+
+                diff2 = Try(_x, y2);
+
+                if (diff2 < diff1) {
+
+                    diff1 = diff2;
+                    y1 = y2;
+                    stepCount = -i;
+                }
+            }
+
+
+            return { x: _x, y: y1, diff: diff1, stepCount: stepCount };
+
+        }
+
+        function Calculate(paras) {
+
+            
+            var result1, result2;
+
+            var tryCount = 0;
+
+            var y = _y;
+
+            try {
+
+                for (let i = 0; i < paras.length; i++) {
+
+                    let para = paras[i];
+
+                    result2 = Approach(para, y);
+
+                    result2.seq = i + 1;
+
+                    if (!result1 || result2.diff < result1.diff) {
+
+                        result1 = result2;
+
+                        y = result2.y;
+                    }
+
+                    tryCount += para.stepCount;
+                }
+            }
+            catch (e) {
+
+                alert(e);
+                writeMsg("spanStatus", "计算异常终止 。 耗时 " + ((new Date().getTime() - _beginTime) / 1000) + "秒 。");
+                return;
+            }
+
+
+            writeMsg("spanStatus", "计算完成 。 耗时 " + ((new Date().getTime() - _beginTime) / 1000) + "秒 。");
+            writeMsg("spanResult1", "当 x = " + result1.x + " 时， y = " + result1.y + "， diff = " + result1.diff + "， diff 表示等式两边的差的绝对值， 所以， diff 也表示计算精度 。 diff 越小，计算精度越高， diff 越大，计算精度越低 。");
+            writeMsg("spanResult2", "本次求解进行了 " + paras.length + " 轮 匹配， 共计 " + tryCount + " 次 匹配， 时间复杂度 ： O ( " + tryCount + " ) 。");
+            writeMsg("spanResult3", "本次解 是 第 " + result1.seq + " 轮 匹配 的 第 " + result1.stepCount + " 个 Step 的 匹配结果 。");
+
+        }
+
+        function writeMsg(id, msg) {
+
+            var span = document.getElementById(id);
+
+            span.innerText = msg;
+        }
+    </script>
+</head>
+<body>
+    本程序用 跨越逼近算法 对 二元隐函数 数值求解， 求当 x 等于某值时对应的 y 。 <br />
+    详细说明 见 《二元隐函数 数值求解》 <a href="https://www.cnblogs.com/KSongKing/p/12109699.html" target="_blank">https://www.cnblogs.com/KSongKing/p/12109699.html</a><br /><br />
+
+    x ： <input id="txtX" value="1" /> <br />
+    y 初始值 ： <input id="txtY" value="0" /> 用于 尝试匹配 的 初始值<br /><br />
+
+    隐函数等式左边和右边的表达式分别表示为 2 个 javascript 函数，左边文本框里的 equationLeft(x, y) 表示等式左边， 右边文本框里的 equationRight(x, y) 表示等式右边 。<br />
+    默认给出的这 2 个 javascript 函数 表示 隐函数 y = tan(x + y) 。<br />
+    <textarea id="txtLeft" style="width:500px; height:200px">
+function equationLeft(x, y)
+{
+     return y;
+}
+    </textarea>
+    <textarea id="txtRight" style="width:500px; height:200px">
+function equationRight(x, y)
+{
+    return Math.tan(x + y);
+}
+    </textarea>
+    <br />
+    匹配设定， 每一轮匹配的设定包括 步长 步数， 用逗号“,”隔开， 每轮设定之间用分号“;”隔开
+    <textarea id="txtPara" style="width:1000px; height:40px">100,10; 10,10; 1,10; 0.1,10; 0.01,10; 0.001,10; 0.0001,10; 0.00001,10; 0.000001,10</textarea><br /><br />
+
+
+
+    <input type="button" value="计算" onclick="btnCalculate_Click();" style="width: 100px" />
+
+    <span id="spanStatus"></span><br /><br />
+
+    <span id="spanResult1"></span><br /><br />
+
+    <span id="spanResult2"></span><br /><br />
+
+    <span id="spanResult3"></span>
+
+   
+</body>
+</html>
